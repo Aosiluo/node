@@ -5,11 +5,11 @@
 分布式版本控制  
 远程仓库、工作区、暂存区、版本库  
 
-![git原理图](./yuanli.jpg)
+![git原理图](./pic/yuanli.jpg)
   
 初始化的时候Git还会自动为我们创建第一个分支master，以及指向master的一个指针叫做HEAD。
 
-![](./%E8%BF%9C%E7%A6%BB.jpg)
+![](./pic/%E8%BF%9C%E7%A6%BB.jpg)
 ***
 
 ## 2、git初始化
@@ -46,7 +46,7 @@
 commit的本质就是：「每次Git都会用暂存区的文件创建一个新的提交，把当前的分支指向新的提交节点，这样就完成了一次新的提交」：  
 若是HEAD指针指向的是bran分支，那么新的节点就会成为jh509的子节点，并且形成新的分支：
 
-![](./tijiaodaima.jpg)
+![](./pic/tijiaodaima.jpg)
 ***
 ## 5、代码回退
 
@@ -107,7 +107,7 @@ mergetool（bcompare解决冲突）
 
 这里要注意的是：「git stash的是改动的文件，也就是被Git追踪的文件，新添加的文件并没有被Git追踪，所以git stash并不会stash」。
 
-![](./v2-a052dfaaaaa8e139690ec44e55b5ffa6_720w.jpg)
+![](./pic/v2-a052dfaaaaa8e139690ec44e55b5ffa6_720w.jpg)
 
 git stash命令也可以加上save命令后面再加上备注信息，方便查看：
 >git stash save "备注信息"

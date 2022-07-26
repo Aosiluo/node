@@ -27,7 +27,7 @@
 
  >sudo docker image ls  
 
-![镜像列表](./1.jpg)
+![镜像列表](./pic/1.jpg)
 
 > REPOSITORY：镜像所在的仓库名称  
 > TAG：镜像标签  
