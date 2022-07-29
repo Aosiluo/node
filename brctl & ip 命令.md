@@ -161,6 +161,109 @@ help 为该命令的帮助信息。
     ip route del default          # 删除默认路由
     ip route delete 192.168.1.0/24 dev eth0 # 删除路由
 
+### ip rule
+
+#### 简介
+
+在某些情况下，我们不只是需要通过数据包的目的地址决定路由，可能还需要通过其他一些域：源地址、IP协议、传输层端口甚至数据包的负载。这就叫做：策略路由(policy routing)。
+
+基于策略的路由比传统路由在功能上更强大，使用更灵活，它使网络管理员不仅能够根据目的地址而且能够根据报文大小、应用或IP源地址等属性来选择转发路径。简单地来说，linux系统有多张路由表，而路由策略会根据一些条件，将路由请求转向不同的路由表。例如源地址在某些范围走路由表A，另外的数据包走路由表，类似这样的规则是有路由策略rule来控制。
+
+在linux系统中，一条路由策略rule主要包含三个信息，即rule的优先级，条件，路由表。其中rule的优先级数字越小表示优先级越高，然后是满足什么条件下由指定的路由表来进行路由。在linux系统启动时，内核会为路由策略数据库配置三条缺省的规则，即rule 0，rule 32766， rule 32767（数字是rule的优先级）
+
+![ip rule](./pic/iprule.png)
+
+- rule 0 ：匹配任何条件的数据包，查询路由表local（table id = 255）。rule 0非常特殊，不能被删除或者覆盖。 查询路由表local(ID 255) | 路由表local 是一个特殊的路由表，包含对于本地和广播地址的高优先级控制路由。
+- rule 32766：匹配任何条件的数据包，查询路由表main(ID 254)，路由表main(ID 254)是一个通常的表，包含所有的无策略路由。平时使用route add添加的路由都是加到这个表里面的。
+- rule 32767：匹配任何条件的数据包，查询路由表default(ID 253)，路由表default(ID 253)是一个空表，它是为一些后续处理保留的。对于前面的缺省策略没有匹配到的数据包，系统使用这个策略进行处理这个规则也可以删除。
+
+        备注：在linux系统中是按照rule的优先级顺序依次匹配。假设系统中只有优先级为0，32766及32767这三条规则。那么系统首先会根据规则0在本地路由表里寻找路由，如果目的地址是本网络，或是广播地址的话，在这里就可以找到匹配的路由；如果没有找到路由，就会匹配下一个不空的规则，在这里只有32766规则，那么将会在主路由表里寻找路由；如果没有找到匹配的路由，就会依据32767规则，即寻找默认路由表；如果失败，路由将失败。
+
+#### 用法
+
+>Usage: ip rule [ list | add | del ] SELECTOR ACTION  
+SELECTOR := [ from PREFIX 数据包源地址] [ to PREFIX 数据包目的地址] [ tos TOS 服务类型][ dev STRING 物理接口]  
+            [ pref NUMBER 优先级 ] [fwmark MARK iptables 标签]  
+ACTION := [ table TABLE_ID 指定所使用的路由表] [ nat ADDRESS 网络地址转换][ prohibit 丢弃该表| reject 拒绝该包| unreachable 丢弃该包]  
+[ flowid CLASSID ]  
+TABLE_ID := [ local | main | default | NUMBER ]
+
+SELECTOR具体参数如下：
+
+    From — 源地址
+    To — 目的地址（这里是选择规则时使用，查找路由表时也使用）
+    Tos — IP包头的TOS（type of sevice）域
+    Dev — 物理接口
+    Fwmark — 防火墙参数
+
+ACTION动作：
+
+    Table 指明所使用的表
+    Nat 透明网关
+    Action prohibit 丢弃该包，并发送 COMM.ADM.PROHIITED的ICMP信息
+    Reject 单纯丢弃该包
+    Unreachable丢弃该包， 并发送 NET UNREACHABLE的ICMP信息
+
+#### 增加策略
+
+1.指定优先级
+
+第一条命令将向规则链增加一条规则，规则匹配的对象是所有的数据包，动作是选用路由表1的路由，这条规则的优先级是32800.
+
+第二条命令将向规则链增加一条规则，规则匹配的对象是IP为192.168.3.112, tos等于0x10的包，使用路由表2,这条规则的优先级是32801,动作是丢弃。
+
+    root@debian:~# ip rule add from 0/0 table 1 pref 32800  
+    root@debian:~# ip rule add from 192.168.3.112/32 tos 0x10 table 2 pref 32801 prohibit  
+    root@debian:~# ip rule  
+    0:      from all lookup local  
+    32766:  from all lookup main  
+    32767:  from all lookup default  
+    32800:  from all lookup 1  
+    32801:  from 192.168.3.112 tos 0x10 lookup 2 prohibit  
+
+2.不指定优先级  
+
+而添加策略时，是可以不指定pref 优先级的，那么系统就会默认创建rule的ID，在main的前面往前移一位。
+
+    root@debian:~# ip rule  add from 171.43.122.52 tab 200  
+    root@debian:~# ip rule  
+    0:      from all lookup local  
+    32765:  from 171.43.122.52 lookup 200  
+    32766:  from all lookup main  
+    32767:  from all lookup default  
+
+3.iptables 的 set-mark功能
+
+还可以借助iptables来实现其他不一样的功能。
+
+使用Netfilter的managle机制针对特定的数据包设置MARK值，在此将3389端口的数据包的MARK值设置为1，然后将fwmark 1的规则应用到ip rule上即可。这样就可以实现特定程序的流量走不同的路线。
+
+    root@debian:~# iptables -t mangle -A OUTPUT -p tcp --dport 8080 -j MARK --set-mark 1
+    root@debian:~# ip rule add fwmark 1 table 20 pref 20
+    root@debian:~# ip route add default via 171.43.122.52 table 20
+    root@debian:~# ip rule
+    0:      from all lookup local
+    20:     from all fwmark 0x1 lookup 20
+    32765:  from 171.43.122.52 lookup 200
+    32766:  from all lookup main
+    32767:  from all lookup default
+    root@debian:~# iptables -t mangle -nvL
+    Chain PREROUTING (policy ACCEPT 0 packets, 0 bytes)
+    pkts bytes target     prot opt in     out     source               destination
+
+    Chain INPUT (policy ACCEPT 0 packets, 0 bytes)
+    pkts bytes target     prot opt in     out     source               destination
+
+    Chain FORWARD (policy ACCEPT 0 packets, 0 bytes)
+    pkts bytes target     prot opt in     out     source               destination
+
+    Chain OUTPUT (policy ACCEPT 0 packets, 0 bytes)
+    pkts bytes target     prot opt in     out     source               destination
+        0     0 MARK       tcp  --  *      *       0.0.0.0/0            0.0.0.0/0            tcp dpt:8080 MARK set 0x1
+
+    Chain POSTROUTING (policy ACCEPT 0 packets, 0 bytes)
+    pkts bytes target     prot opt in     out     source               destination
+
 ### ifconfig命令
 
 语法
