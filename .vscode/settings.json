@@ -1,9 +1,0 @@
-{
-    "files.associations": {
-        "*.so": "c",
-        "ipc.h": "c",
-        "types.h": "c",
-        "msg.h": "c",
-        "timer_t.h": "c"
-    }
-}
