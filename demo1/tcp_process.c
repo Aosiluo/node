@@ -31,7 +31,7 @@ void  process_conn_server(int s) {
             return;
         }
 
-        sprintf(buffer, "%d butes altogether", size);
+        sprintf(buffer, "%d butes altogether\n", size);
         write(s, buffer, strlen(buffer) + 1);
     }
 }

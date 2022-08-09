@@ -19,7 +19,6 @@ int main(int argc, char* argv[]) {
     int err;        //返回值
     pid_t pid;      //分叉进行 ID
     printf("server begging\n");
-    printf("create socket\n"); 
     ss = socket(AF_INET, SOCK_STREAM, 0);
     printf("create socket ss :%d\n",ss); 
     if (ss < 0)
@@ -50,16 +49,13 @@ int main(int argc, char* argv[]) {
     //主循环
     for (;;) {
         int addrlen = sizeof(struct sockaddr);
-        printf("join main for\n"); 
+        
         sc = accept(ss, (struct sockaddr*)&client_addr, &addrlen);
-        printf("sc:%d\n",sc);
         if (sc < 0) {       //err
             continue;       //结束循环
         }
-        printf("begin fork\n");
         
         pid = fork();       //分叉进程
-        printf("fork :%d\n",pid); 
         if (pid == 0) {     //子进程
             close(ss);      //子进程中关闭listeb监听
             process_conn_server(sc);
