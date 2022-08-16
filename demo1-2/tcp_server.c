@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
         int addrlen = sizeof(struct sockaddr);
         int
             sc = accept(ss, (struct sockaddr*)&client_addr, &addrlen);
-        if (sc < 0) {       //err
+        if (sc < 0) {       //err-
             continue;       //结束循环
         }
         else {
@@ -81,12 +81,12 @@ int main(int argc, char* argv[]) {
                 //创建线程
                 pthread_create(&server_t, NULL, (void*)server_buf, &sc);
                 //阻塞线程
-                res = pthread_join(server_t, thread_res);
-                return 0;
+                //res = pthread_join(server_t, thread_res);
+                //return 0;
             }
 
         }
     }
-    exit(0);
+    //exit(0);
 
 }
