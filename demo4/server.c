@@ -5,9 +5,11 @@
 #include <sys/socket.h>
 #include <unistd.h>
 #include <linux/in.h>
+#include <linux/un.h>
 #include "tcp_process.h"
 #include <pthread.h>
 #include <signal.h>
+#include <time.h>
 
 #define TCP_PORT 8888   //监听TCP端口
 #define UDP_PORT 9999   //监听UDP端口
@@ -51,23 +53,12 @@ void* server_udp_buf(int s, struct sockaddr* client) {
     while (1)
     {
         len = sizeof(*client);
-        n = recvfrom(s, buf, BUFF_LEN, 0, cilent, &len);
-        sendto(s, buff, n, 0, client, len);
+        n = recvfrom(s, buf, BUFF_LEN, 0, client, &len);
+        sendto(s, buf, n, 0, client, len);
     }
 
 }
 
-void ClientSocketAdd(fd_set FAR* set)        //将服务器接收到的客户端socket添加到select监听中
-{
-    for (int nLoopi = 0; nLoopi < BACKLOG; ++nLoopi)
-    {
-        if (g_fd_ArrayC[nLoopi] != 0)
-        {
-            printf("-LOOPI: 待决SOCKET: %d\n", g_fd_ArrayC[nLoopi]);
-            FD_SET(g_fd_ArrayC[nLoopi], set);
-        }
-    }
-}
 
 int main(int argc, char* argv[]) {
     int tcp_ss = 0, udp_ss = 0, unix_ss = 0, sc = 0;
@@ -124,10 +115,9 @@ int main(int argc, char* argv[]) {
     //unix server addr 
     //bzero(&server_unix_addr, sizeof(server_unix_addr));           //清零
     server_unix_addr.sun_family = AF_LOCAL;                   //协议族
-    strocpy(server_unix_addr.sun_addr, UNIX_PATH);
-    len_UNIX = sizeof(stryct sockaddr_un);
-    server_unix_addr.sun_port = htons(UNIX_PORT);                 //服务器端口
-
+    strocpy(server_unix_addr.sun_path, UNIX_PATH);
+    len_UNIX = sizeof(server_unix_addr);
+    
     //将地址结构绑定到套接字描述符
     err = bind(tcp_ss, (struct sockaddr*)&server_tcp_addr, sizeof(server_tcp_addr));        //绑定地址到套接字
     if (err < 0) {      //err
@@ -166,9 +156,10 @@ int main(int argc, char* argv[]) {
         return -1;
     }
 
-    int maxfd = (((a > b) ? a : b) > c) ? ((a > b) ? a : b) : c;
+    int maxfd = (((tcp_ss > udp_ss) ? tcp_ss : udp_ss) > unix_ss) ? ((tcp_ss > udp_ss) ? tcp_ss : udp_ss) : unix_ss;
     printf("maxfd:%d\n", maxfd);
     fd_set fdRead;
+    struct timeval tv;
     tv.tv_sec = 5;
     tv.tv_usec = 0;
 
@@ -180,11 +171,6 @@ int main(int argc, char* argv[]) {
     //主循环
     for (;;) {
         printf("-select 开始\n");
-
-
-
-        //将待决的连接SOCKET放入fdRead集中进行select监听
-        ClientSocketAdd(&fdRead);
 
         /* 调用select模式进行监听*/
         int g_nRes = select(maxfd + 1, &fdRead, NULL, NULL, &tv);
@@ -243,7 +229,6 @@ int main(int argc, char* argv[]) {
     close(tcp_ss);
     close(udp_ss);
     close(unix_ss);
-    unlike(UNIX_PATH);
-    WSACleanup();
+    unlink(UNIX_PATH);
     return 0;
 }
